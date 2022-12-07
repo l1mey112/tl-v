@@ -20,15 +20,17 @@ mut:
 fn is_id(ch u8) bool { return (ch >= `a` && ch <= `z`) || (ch >= `A` && ch <= `Z`) || ch == `_` }
 
 fn (mut l Lexer) get() Tok {
-	for {
+	outer: for {
 		if l.pos >= l.text.len {
 			return .eof
 		}
 
 		mut ch := l.text[l.pos] l.pos++
-
+		
 		if ch.is_space() { continue }
 		
+		lookahead := l.text[l.pos] or { 0 } // use for `==`
+
 		if is_id(ch) {
 			start := l.pos - 1
 			for l.pos < l.text.len {
@@ -77,7 +79,19 @@ fn (mut l Lexer) get() Tok {
 				`+` { return .add  }
 				`-` { return .sub  }
 				`*` { return .mul  }
-				`/` { return .div  }
+				`/` {
+					if lookahead == `/` {
+						l.pos++
+						for l.pos < l.text.len {
+							if l.text[l.pos] == `\n` {
+								continue outer
+							}
+							l.pos++
+						}
+					} else {
+						return .div
+					}
+				}
 				`=` { return .eq   }
 				`;` { return .semi }
 				else {}

@@ -68,7 +68,8 @@ fn (g Gen) expr(root &AstNode) {
 			return
 		}
 		.ident {
-			g.get_identifier(root.n1.value as string)
+			g.get_identifier(root.value as string)
+			return
 		}
 		else {}
 	}
@@ -111,7 +112,12 @@ fn (mut g Gen) gen(root &AstNode) {
 		.s_proc {
 			g.label_count = 0
 			g.writeln("${g.symtable[root.value as u64]}:")
+			g.writeln("\tpush rbp")
+			g.writeln("\tmov rbp, rsp")
+			g.writeln("\tsub rbp, 48")
 			g.gen(root.n1)
+			g.writeln("\tleave")
+			g.writeln("\tret")
 		}
 		.stmtseq {
 			if unsafe { root.n1 != nil } {

@@ -1,4 +1,4 @@
-proc add {
+proc addup {
 	r = a0 + a1;
 }
 
@@ -6,7 +6,7 @@ proc main {
 	a0 = 22;
 	a1 = 22;
 
-	call add;
+	call addup;
 
 	r = 0;
 }
