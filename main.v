@@ -36,4 +36,9 @@ fn main() {
 	mut p := Parser{l: l}
 	a := p.parse()
 	p.walk(a)
+	println(p.procs)
+
+	mut g := Gen{symtable: p.procs}
+
+	g.gen(a)
 }

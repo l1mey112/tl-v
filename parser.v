@@ -1,8 +1,9 @@
 enum AstKind {
-	s_proc s_if s_while
-	stmt stmtseq expr empty assign
-	add sub mul div eq proc_call
-	ident dec
+	s_proc
+	stmtseq
+	s_if s_while empty proc_call
+	expr
+		add sub mul div ident dec assign
 }
 
 type AstValue = u64 | string
@@ -191,11 +192,11 @@ fn (mut p Parser) proc() &AstNode {
 	if p.l.str_data in p.procs {
 		panic("duplicate function name ${p.l.str_data}")
 	}
+	mut n := &AstNode{kind: .s_proc, value: u64(p.procs.len)}
 	p.procs << p.l.str_data
 	if !p.l.expect(.obr) {
 		panic("expected open bracket to begin procedure")
 	}
-	mut n := &AstNode{kind: .s_proc}
 	n.n1 = p.stmt()
 	return n
 }

@@ -31,7 +31,6 @@ fn (mut l Lexer) get() Tok {
 		
 		if is_id(ch) {
 			start := l.pos - 1
-			l.pos++
 			for l.pos < l.text.len {
 				c := l.text[l.pos]
 				if (c >= `a` && c <= `z`) || (c >= `A` && c <= `Z`) || (c >= `0` && c <= `9`) || c == `_` {
