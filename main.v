@@ -1,9 +1,9 @@
 import os
 
 enum Tok {
-	s_if s_else s_while s_do // keywords
+	s_if s_else s_while      // keywords
 	opar cpar obr cbr semi   // punc
-	add sub eq dec           // ops
+	add sub mul div eq dec   // ops
 	svar                     // stack
 	avar                     // args
 	eof
@@ -40,6 +40,8 @@ fn (mut l Lexer) get() Tok {
 			`)` { return .cpar }
 			`+` { return .add  }
 			`-` { return .sub  }
+			`*` { return .mul  }
+			`/` { return .div  }
 			`=` { return .eq   }
 			`;` { return .semi }
 			else {}
@@ -66,7 +68,6 @@ fn (mut l Lexer) get() Tok {
 			'if'    { return .s_if    }
 			'else'  { return .s_else  }
 			'while' { return .s_while }
-			'do'    { return .s_do    }
 			's0'    { l.int_data = 0 return .svar }
 			's1'    { l.int_data = 1 return .svar }
 			's2'    { l.int_data = 2 return .svar }
@@ -97,9 +98,9 @@ fn (mut l Lexer) curr() Tok {
 }
 
 enum AstKind {
-	s_if s_block
-	program stmt stmtseq expr empty assign
-	add sub eq
+	s_if s_while
+	stmt stmtseq expr empty assign
+	add sub mul div eq
 	svar avar dec
 }
 
@@ -118,16 +119,19 @@ mut:
 }
 
 fn (mut p Parser) expr_paren() &AstNode {
-	if p.l.curr() != .opar {
-		panic("syntax error")
+	if p.l.curr() != .opar || p.l.curr() == .eof {
+		panic("syntax error ${p.l.curr()}")
 	}
+	p.l.next()
 	mut n := p.expr()
-	if p.l.next() != .cpar {
+	if p.l.curr() != .cpar || p.l.curr() == .eof {
 		panic("syntax error")
 	}
+	p.l.next()
 	return n
 }
 
+// PRECEDENCE 0
 fn (mut p Parser) term() &AstNode {
 	match p.l.curr() {
 		.svar {
@@ -148,86 +152,142 @@ fn (mut p Parser) term() &AstNode {
 	}
 }
 
-fn (mut p Parser) expr1() &AstNode {
+// PRECEDENCE '*' '/'
+fn (mut p Parser) expr2() &AstNode {
 	mut n := p.term()
-	for {
-		t := p.l.curr()
-		if t !in [.add, .sub] {
-			break
-		}
-		mut x := &AstNode{kind: if t == .add { .add } else { .sub }}
+	for p.l.curr() in [.mul, .div] {
+		mut x := &AstNode{}
+		x.kind = if p.l.curr() == .mul { .mul } else { .div }
 		x.n1 = n
+		p.l.next()
 		x.n2 = p.term()
 		n = x
 	}
 	return n
 }
 
+// PRECEDENCE '+' '-'
+fn (mut p Parser) expr1() &AstNode {
+	mut n := p.expr2()
+	for p.l.curr() in [.add, .sub] {
+		mut x := &AstNode{}
+		x.kind = if p.l.curr() == .add { .add } else { .sub }
+		x.n1 = n
+		p.l.next()
+		x.n2 = p.expr2()
+		n = x
+	}
+	return n
+}
+
+// PRECEDENCE '='
 fn (mut p Parser) expr() &AstNode {
-	if p.l.curr() !in [.svar, .avar] {
+	if !(p.l.curr() == .svar || p.l.curr() == .avar) {
 		return p.expr1()
 	}
 	mut n := p.expr1()
-	if (n.kind == .svar || n.kind == .avar) && p.l.curr() == .eq {
+	if n.kind in [.svar, .avar] && p.l.curr() == .eq {
 		mut x := &AstNode{kind: .assign}
 		x.n1 = n
-		x.n2 = p.expr()
 		p.l.next()
-		return x
+		x.n2 = p.expr()
+		n = x
 	}
 	return n
 }
 
 fn (mut p Parser) stmt() &AstNode {
-	tok := p.l.next()
+	mut n := &AstNode(0)
+
+	tok := p.l.curr()
 	match tok {
-		/* .s_if {
-			mut n := &AstNode{kind: .s_if}
+		.s_if {
+			n = &AstNode{kind: .s_if}
+			p.l.next()
 			n.n1 = p.expr()
-			n.n2 = p.stmt()
-			if p.l.next() == .s_else {
-				n.n3 = p.stmt()
+			if p.l.curr() == .obr {
+				n.n2 = p.stmt()
+				if p.l.curr() == .s_else {
+					if p.l.next() == .obr {
+						n.n3 = p.stmt()
+					} else {
+						panic("syntax error")
+					}
+				}
+				return n
 			}
-			return n
+			panic("syntax error")
+		}
+		.s_while {
+			n = &AstNode{kind: .s_while}
+			p.l.next()
+			n.n1 = p.expr()
+			if p.l.curr() == .obr {
+				n.n2 = p.stmt()
+				p.l.next()
+				return n
+			}
+			panic("syntax error")
 		}
 		.obr {
-			mut n := &AstNode{kind: .empty}
-			for p.l.next() != .cbr {
-				mut x := AstNode{kind: .stmtseq}
-				x.n1 = n
-				x.n2 = p.stmt()
+			if p.l.next() != .cbr {
+				n = &AstNode{kind: .stmtseq}
+				for {
+					mut x := &AstNode{kind: .stmtseq}
+					x.n1 = n
+					x.n2 = p.stmt()
+					n = x
+					if p.l.curr() == .cbr {
+						break
+					}
+				}
+				p.l.next()
+				return n
+			} else {
+				p.l.next()
+				return &AstNode{kind: .empty}
 			}
-			return n
-		} */
+		}
 		.semi {
-			return &AstNode{kind: .empty}
+			p.l.next()
+			n = &AstNode{kind: .empty}
 		}
 		else {
-			mut n := &AstNode{kind: .expr}
+			n = &AstNode{kind: .expr}
 			n.n1 = p.expr()
-			if p.l.next() != .semi {
+			if p.l.curr() == .semi {
+				p.l.next()
+			} else {
 				panic("syntax error ${p.l.curr()}")
 			}
-			return n
 		}
 	}
-	panic("unreachable")
+	return n
 }
 
-fn (mut p Parser) program() &AstNode {
-	mut n := &AstNode{kind: .program}
-	n.n1 = p.stmt()
-	if p.l.next() != .eof {
-		panic("syntax error")
+fn (mut p Parser) parse() &AstNode {
+	p.l.next()
+	mut n := &AstNode{kind: .stmtseq}
+	for {
+		mut x := &AstNode{kind: .stmtseq}
+		x.n1 = n
+		x.n2 = p.stmt()
+		n = x
+		if p.l.curr() == .eof {
+			break
+		}
 	}
 	return n
 }
 
 fn (p Parser) walk_impl(n &AstNode, _dep int) {
-	dep := _dep + 1
-
-	print(` `.repeat(_dep))
-	println(n.kind)
+	dep := if n.kind != .stmtseq {
+		print(` `.repeat(_dep))
+		println(n.kind)
+		_dep + 1
+	} else {
+		_dep
+	}
 
 	if unsafe { n.n1 != nil } {
 		p.walk_impl(n.n1, dep)
@@ -248,6 +308,6 @@ fn main() {
 	mut l := Lexer{text: os.get_raw_lines_joined()}
 	mut p := Parser{l: l}
 
-	a := p.program()
+	a := p.parse()
 	p.walk(a)
 }
