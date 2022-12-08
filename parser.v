@@ -55,17 +55,6 @@ fn (mut p Parser) term() &AstNode {
 	}
 }
 
-/* mut x := &AstNode{kind: .index}
-	x.n1 = n
-	p.l.next()
-	x.n2 = p.expr()
-	n = x
-	if p.l.curr() != .csb {
-		panic("use ']' to close index expression")
-	}
-	p.l.next()
-} */
-
 // LEFT PRECEDENCE '[]'
 fn (mut p Parser) expr4() &AstNode {
 	mut n := p.term()

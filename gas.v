@@ -253,15 +253,15 @@ fn (mut g Gen) generate_all(root &AstNode) {
 .extern printf
 .globl main
 .data
-message: .asciz \"%llu\\n\"
+__print_msg: .asciz \"%llu\\n\"
 .text
 main:
 	call tlmain
 	mov rax, r14
 	ret
-print:
+print: // builtin function
 	mov rsi, r8
-	lea rdi, message[rip]
+	lea rdi, __print_msg[rip]
 	xor eax, eax
 	jmp printf@plt") // r8
 	g.gen(root)
