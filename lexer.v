@@ -1,9 +1,10 @@
 
 enum Tok {
 	s_if s_else s_while    // keywords
-	s_proc s_call          //
+	s_proc s_call s_return // 
 	opar cpar obr cbr semi // punc
-	add sub mul div eq dec // ops
+	add sub mul div assign dec // ops
+	gt gte lt lte eq neq   // 
 	ident                  // vars
 	eof
 }
@@ -44,11 +45,12 @@ fn (mut l Lexer) get() Tok {
 			word := l.text[start..l.pos]
 
 			match word {
-				'if'    { return .s_if    }
-				'else'  { return .s_else  }
-				'while' { return .s_while }
-				'proc'  { return .s_proc  }
-				'call'  { return .s_call  }
+				'if'     { return .s_if     }
+				'else'   { return .s_else   }
+				'while'  { return .s_while  }
+				'proc'   { return .s_proc   }
+				'call'   { return .s_call   }
+				'return' { return .s_return }
 				else {
 					l.str_data = word
 					return .ident
@@ -92,8 +94,35 @@ fn (mut l Lexer) get() Tok {
 						return .div
 					}
 				}
-				`=` { return .eq   }
-				`;` { return .semi }
+				`>` {
+					if lookahead == `=` {
+						l.pos++
+						return .gte
+					}
+					return .gt
+				}
+				`<` {
+					if lookahead == `=` {
+						l.pos++
+						return .lte
+					}
+					return .lt
+				}
+				`!` {
+					if lookahead == `=` {
+						l.pos++
+						return .neq
+					}
+					// implement unary operators
+				}
+				`=` {
+					if lookahead == `=` {
+						l.pos++
+						return .eq
+					}
+					return .assign
+				}
+				`;` { return .semi   }
 				else {}
 			}
 		}

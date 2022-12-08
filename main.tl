@@ -1,24 +1,17 @@
-proc addup {
-	r = a0 + a1;
+proc sumto {
+	s0 = 0;
+	s1 = 1;
+	while s1 <= a0 {
+		s0 = s0 + s1;
+		s1 = s1 + 1;
+	}
+	r = s0;
 }
 
-//proc fib {
-//	if a0 {
-//		s0 = 2
-//		s1 = 0
-//		s2 = 1
-//		while {
-//			
-//		}
-//	} else {
-//		r = 0
-//	}
-//}
-
 proc main {
-	a0 = 24;
-	call print;
-	a0 = 21;
+	a0 = 10;
+	call sumto;
+	a0 = r;
 	call print;
 
 	r = 0;

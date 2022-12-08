@@ -27,7 +27,7 @@ fn (g Gen) get_identifier(s string) {
 				return
 			}
 			`s` {
-				g.writeln("\tmov rax, [rbp - ${v * 8}]")
+				g.writeln("\tmov rax, [rbp - ${v * 8 + 8}]")
 				return
 			}
 			else {}
@@ -52,7 +52,7 @@ fn (g Gen) mov_to_identifier(s string) {
 				return
 			}
 			`s` {
-				g.writeln("\tmov [rbp - ${v * 8}], rax")
+				g.writeln("\tmov [rbp - ${v * 8 + 8}], rax")
 				return
 			}
 			else {}
@@ -105,6 +105,36 @@ fn (g Gen) expr(root &AstNode) {
 			.div {
 				g.writeln("\txor rdx, rdx")
 				g.writeln("\tdiv rcx")
+			}
+			.gt {
+				g.writeln("\tcmp rax, rcx")
+				g.writeln("\tmov rax, 0")
+				g.writeln("\tseta al")
+			}
+			.gte {
+				g.writeln("\tcmp rax, rcx")
+				g.writeln("\tmov rax, 0")
+				g.writeln("\tsetae al")
+			}
+			.lt {
+				g.writeln("\tcmp rax, rcx")
+				g.writeln("\tmov rax, 0")
+				g.writeln("\tsetb al")
+			}
+			.lte {
+				g.writeln("\tcmp rax, rcx")
+				g.writeln("\tmov rax, 0")
+				g.writeln("\tsetbe al")
+			}
+			.eq {
+				g.writeln("\tcmp rax, rcx")
+				g.writeln("\tmov rax, 0")
+				g.writeln("\tsete al")
+			}
+			.neq {
+				g.writeln("\tcmp rax, rcx")
+				g.writeln("\tmov rax, 0")
+				g.writeln("\tsetne al")
 			}
 			else {
 				panic("unreachable")
@@ -162,13 +192,17 @@ fn (mut g Gen) gen(root &AstNode) {
 		.s_while {
 			lbl := g.lbl()
 			lbl2 := g.lbl()
-			g.writeln(".${lbl}")
+			g.writeln(".${lbl}:")
 			g.expr(root.n1)
 			g.writeln("\ttest rax, rax")
 			g.writeln("\tjz .${lbl2}")
 			g.gen(root.n2)
 			g.writeln("\tjmp .${lbl}")
 			g.writeln(".${lbl2}:")
+		}
+		.s_return {
+			g.writeln("\tleave")
+			g.writeln("\tret")
 		}
 		.proc_call {
 			g.writeln("\tcall ${root.n1.value as string}")
@@ -193,10 +227,9 @@ main:
 	mov rax, r14
 	ret
 print:
-	lea rdi, [rip + message]
 	mov rsi, r8
+	lea rdi, message[rip]
 	xor eax, eax
-	call printf@plt
-	ret") // r8
+	jmp printf@plt") // r8
 	g.gen(root)
 }

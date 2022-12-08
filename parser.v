@@ -1,9 +1,10 @@
 enum AstKind {
 	s_proc
 	stmtseq
-	s_if s_while empty proc_call
+	s_if s_while s_return empty proc_call
 	expr
 		add sub mul div ident dec assign
+		gt gte lt lte eq neq
 }
 
 type AstValue = u64 | string
@@ -54,7 +55,7 @@ fn (mut p Parser) term() &AstNode {
 }
 
 // PRECEDENCE '*' '/'
-fn (mut p Parser) expr2() &AstNode {
+fn (mut p Parser) expr3() &AstNode {
 	mut n := p.term()
 	for p.l.curr() in [.mul, .div] {
 		mut x := &AstNode{}
@@ -68,11 +69,35 @@ fn (mut p Parser) expr2() &AstNode {
 }
 
 // PRECEDENCE '+' '-'
-fn (mut p Parser) expr1() &AstNode {
-	mut n := p.expr2()
+fn (mut p Parser) expr2() &AstNode {
+	mut n := p.expr3()
 	for p.l.curr() in [.add, .sub] {
 		mut x := &AstNode{}
 		x.kind = if p.l.curr() == .add { .add } else { .sub }
+		x.n1 = n
+		p.l.next()
+		x.n2 = p.expr3()
+		n = x
+	}
+	return n
+}
+
+// PRECEDENCE '>' '>=' '<' '<=' '==' '!='
+fn (mut p Parser) expr1() &AstNode {
+	mut n := p.expr2()
+	for p.l.curr() in [.gt, .gte, .lt, .lte, .eq, .neq] {
+		mut x := &AstNode{}
+		x.kind = match p.l.curr() {
+			.gt  { .gt  }
+			.gte { .gte }
+			.lt  { .lt  }
+			.lte { .lte }
+			.eq  { .eq  }
+			.neq { .neq }
+			else {
+				panic("unreachable")
+			}
+		}
 		x.n1 = n
 		p.l.next()
 		x.n2 = p.expr2()
@@ -87,7 +112,7 @@ fn (mut p Parser) expr() &AstNode {
 		return p.expr1()
 	}
 	mut n := p.expr1()
-	if n.kind == .ident && p.l.curr() == .eq {
+	if n.kind == .ident && p.l.curr() == .assign {
 		mut x := &AstNode{kind: .assign}
 		x.n1 = n
 		p.l.next()
@@ -140,6 +165,15 @@ fn (mut p Parser) stmt() &AstNode {
 				p.l.next()
 			} else {
 				panic("expected semicolon to complete procedure call")
+			}
+		}
+		.s_return {
+			p.l.next()
+			n = &AstNode{kind: .s_return}
+			if p.l.curr() == .semi {
+				p.l.next()
+			} else {
+				panic("expected semicolon to complete return statement")
 			}
 		}
 		.obr {
