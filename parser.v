@@ -125,7 +125,6 @@ fn (mut p Parser) stmt() &AstNode {
 			n.n1 = p.expr()
 			if p.l.curr() == .obr {
 				n.n2 = p.stmt()
-				p.l.next()
 				return n
 			}
 			panic("expected opening brace to begin while loop")

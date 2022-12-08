@@ -34,11 +34,12 @@ fn main() {
 		}
 	} */
 	mut p := Parser{l: l}
+	p.procs << 'print'
 	a := p.parse()
 	/* p.walk(a)
 	println(p.procs) */
 
 	mut g := Gen{symtable: p.procs}
 
-	g.gen(a)
+	g.generate_all(a)
 }
