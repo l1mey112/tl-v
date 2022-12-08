@@ -1,11 +1,11 @@
 
 enum Tok {
-	s_if s_else s_while    // keywords
-	s_proc s_call s_return // 
-	opar cpar obr cbr semi // punc
+	s_if s_else s_while s_data // keywords
+	s_proc s_call s_return     // 
+	opar cpar obr cbr semi     // punc
 	add sub mul div assign dec // ops
-	gt gte lt lte eq neq   // 
-	ident                  // vars
+	gt gte lt lte eq neq       // 
+	ident                      // vars
 	eof
 }
 
@@ -51,6 +51,7 @@ fn (mut l Lexer) get() Tok {
 				'proc'   { return .s_proc   }
 				'call'   { return .s_call   }
 				'return' { return .s_return }
+				'data'   { return .s_data   }
 				else {
 					l.str_data = word
 					return .ident

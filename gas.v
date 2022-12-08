@@ -143,6 +143,26 @@ fn (g Gen) expr(root &AstNode) {
 	}
 }
 
+fn (mut g Gen) const_data(root &AstNode) {
+	if unsafe { root.n1 != nil } {
+		g.const_data(root.n1)
+	}
+	if unsafe { root.n2 != nil } {
+		if root.n2.n1.kind == .dec {
+			g.writeln("\t.long ${root.n2.n1.value as u64}")
+		} else if root.n2.n1.kind == .ident {
+			v := root.n2.n1.value as string
+			if v !in g.symtable {
+				panic("pointer '${v}' not in symbol table")
+			}
+			g.writeln("\t.long ${v}")
+		} else {
+			panic('unreachable')
+		}
+	}	
+}
+
+
 fn (mut g Gen) gen(root &AstNode) {
 	match root.kind {
 		.s_proc {
@@ -159,6 +179,23 @@ fn (mut g Gen) gen(root &AstNode) {
 			g.gen(root.n1)
 			g.writeln("\tleave")
 			g.writeln("\tret")
+		}
+		.s_data {
+			name := g.symtable[root.value as u64]
+			if name == 'main' {
+				panic("cannot use symbol 'main' as data")
+			}
+			g.writeln("${name}:")
+			g.const_data(root)
+			// mut n := root
+			/* for {
+				if unsafe { root.n1 != nil } {
+					g.gen(root.n1)
+				}
+				if unsafe { root.n2 != nil } {
+					g.gen(root.n2)
+				}
+			} */
 		}
 		.stmtseq {
 			if unsafe { root.n1 != nil } {
@@ -205,7 +242,11 @@ fn (mut g Gen) gen(root &AstNode) {
 			g.writeln("\tret")
 		}
 		.proc_call {
-			g.writeln("\tcall ${root.n1.value as string}")
+			if root.n1.value as string == 'main' {
+				g.writeln("\tcall tlmain")
+			} else {
+				g.writeln("\tcall ${root.n1.value as string}")
+			}
 		}
 		.empty {}
 		else {

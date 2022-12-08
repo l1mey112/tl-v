@@ -1,5 +1,6 @@
 enum AstKind {
 	s_proc
+	s_data
 	stmtseq
 	s_if s_while s_return empty proc_call
 	expr
@@ -122,6 +123,43 @@ fn (mut p Parser) expr() &AstNode {
 	return n
 }
 
+fn (mut p Parser) stmtseq(is_expr bool) &AstNode {
+	mut n := &AstNode(0)
+	
+	if p.l.next() != .cbr {
+		n = &AstNode{kind: .stmtseq}
+		for {
+			mut x := &AstNode{kind: .stmtseq}
+			x.n1 = n
+			if is_expr {
+				x.n2 = p.stmtexpr()
+			} else {
+				x.n2 = p.stmt()
+			}
+			n = x
+			if p.l.curr() == .cbr {
+				break
+			}
+		}
+		p.l.next()
+		return n
+	} else {
+		p.l.next()
+		return &AstNode{kind: .empty}
+	}
+}
+
+fn (mut p Parser) stmtexpr() &AstNode {
+	mut n := &AstNode{kind: .expr}
+	n.n1 = p.expr()
+	if p.l.curr() == .semi {
+		p.l.next()
+	} else {
+		panic("expected semicolon to complete expression")
+	}
+	return n
+}
+
 fn (mut p Parser) stmt() &AstNode {
 	mut n := &AstNode(0)
 
@@ -166,6 +204,7 @@ fn (mut p Parser) stmt() &AstNode {
 			} else {
 				panic("expected semicolon to complete procedure call")
 			}
+			return n
 		}
 		.s_return {
 			p.l.next()
@@ -175,62 +214,53 @@ fn (mut p Parser) stmt() &AstNode {
 			} else {
 				panic("expected semicolon to complete return statement")
 			}
+			return n
 		}
 		.obr {
-			if p.l.next() != .cbr {
-				n = &AstNode{kind: .stmtseq}
-				for {
-					mut x := &AstNode{kind: .stmtseq}
-					x.n1 = n
-					x.n2 = p.stmt()
-					n = x
-					if p.l.curr() == .cbr {
-						break
-					}
-				}
-				p.l.next()
-				return n
-			} else {
-				p.l.next()
-				return &AstNode{kind: .empty}
-			}
+			return p.stmtseq(false)
 		}
 		.semi {
 			p.l.next()
 			n = &AstNode{kind: .empty}
+			return n
 		}
 		.eof {
 			panic("unexpected eof")
+			return n
 		}
 		else {
-			n = &AstNode{kind: .expr}
-			n.n1 = p.expr()
-			if p.l.curr() == .semi {
-				p.l.next()
-			} else {
-				panic("expected semicolon to complete expression")
-			}
+			return p.stmtexpr()
 		}
 	}
-	return n
 }
 
-fn (mut p Parser) proc() &AstNode {
-	if p.l.curr() != .s_proc || p.l.curr() == .eof {
-		panic("procedures may only be expressed at the top level")
+fn (mut p Parser) toplevel() &AstNode {
+	if !(p.l.curr() == .s_proc || p.l.curr() == .s_data) || p.l.curr() == .eof {
+		panic("procedures and data may only be expressed at the top level")
 	}
+	is_proc := p.l.curr() == .s_proc
 	if !p.l.expect(.ident) {
-		panic("expected name of procedure")
+		panic("expected name")
 	}
 	if p.l.str_data in p.procs {
-		panic("duplicate function name ${p.l.str_data}")
+		panic("duplicate symbol name ${p.l.str_data}")
 	}
-	mut n := &AstNode{kind: .s_proc, value: u64(p.procs.len)}
+	mut n := &AstNode(0)
+	if is_proc {
+		n = &AstNode{kind: .s_proc, value: u64(p.procs.len)}
+	} else {
+		n = &AstNode{kind: .s_data, value: u64(p.procs.len)}
+	}
 	p.procs << p.l.str_data
+	
 	if !p.l.expect(.obr) {
-		panic("expected open bracket to begin procedure")
+		panic("expected open bracket")
 	}
-	n.n1 = p.stmt()
+	if is_proc {
+		n.n1 = p.stmt()
+	} else {
+		n.n1 = p.stmtseq(true)
+	}
 	return n
 }
 
@@ -241,7 +271,7 @@ fn (mut p Parser) parse() &AstNode {
 		for {
 			mut x := &AstNode{kind: .stmtseq}
 			x.n1 = n
-			x.n2 = p.proc()
+			x.n2 = p.toplevel()
 			n = x
 			if p.l.curr() == .eof {
 				break

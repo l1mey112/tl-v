@@ -1,18 +1,11 @@
-proc sumto {
-	s0 = 0;
-	s1 = 1;
-	while s1 <= a0 {
-		s0 = s0 + s1;
-		s1 = s1 + 1;
-	}
-	r = s0;
+proc fn_0 {}
+proc fn_1 {}
+proc fn_2 {}
+
+data my_data {
+	fn_0; fn_1; fn_2; 0;
 }
 
 proc main {
-	a0 = 10;
-	call sumto;
-	a0 = r;
-	call print;
-
-	r = 0;
+	a0 = my_data;
 }
