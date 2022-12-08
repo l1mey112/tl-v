@@ -36,7 +36,7 @@ fn (g Gen) get_identifier(s string) {
 	if s !in g.symtable {
 		panic("identifier '${s}' is not a function or a variable")
 	}
-	g.writeln("\tmov rax, ${s}")
+	g.writeln("\tlea rax, ${s}[rip]")
 }
 
 fn (g Gen) mov_to_identifier(s string) {
@@ -136,6 +136,9 @@ fn (g Gen) expr(root &AstNode) {
 				g.writeln("\tmov rax, 0")
 				g.writeln("\tsetne al")
 			}
+			.index {
+				g.writeln("\tmov rax, [rax + rcx * 8]")
+			}
 			else {
 				panic("unreachable")
 			}
@@ -149,13 +152,13 @@ fn (mut g Gen) const_data(root &AstNode) {
 	}
 	if unsafe { root.n2 != nil } {
 		if root.n2.n1.kind == .dec {
-			g.writeln("\t.long ${root.n2.n1.value as u64}")
+			g.writeln("\t.quad ${root.n2.n1.value as u64}")
 		} else if root.n2.n1.kind == .ident {
 			v := root.n2.n1.value as string
 			if v !in g.symtable {
 				panic("pointer '${v}' not in symbol table")
 			}
-			g.writeln("\t.long ${v}")
+			g.writeln("\t.quad ${v}")
 		} else {
 			panic('unreachable')
 		}
@@ -181,21 +184,14 @@ fn (mut g Gen) gen(root &AstNode) {
 			g.writeln("\tret")
 		}
 		.s_data {
+			g.writeln(".data")
 			name := g.symtable[root.value as u64]
 			if name == 'main' {
 				panic("cannot use symbol 'main' as data")
 			}
 			g.writeln("${name}:")
 			g.const_data(root)
-			// mut n := root
-			/* for {
-				if unsafe { root.n1 != nil } {
-					g.gen(root.n1)
-				}
-				if unsafe { root.n2 != nil } {
-					g.gen(root.n2)
-				}
-			} */
+			g.writeln(".text")
 		}
 		.stmtseq {
 			if unsafe { root.n1 != nil } {
@@ -242,11 +238,8 @@ fn (mut g Gen) gen(root &AstNode) {
 			g.writeln("\tret")
 		}
 		.proc_call {
-			if root.n1.value as string == 'main' {
-				g.writeln("\tcall tlmain")
-			} else {
-				g.writeln("\tcall ${root.n1.value as string}")
-			}
+			g.expr(root.n1)
+			g.writeln("\tcall rax")
 		}
 		.empty {}
 		else {

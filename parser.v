@@ -4,7 +4,7 @@ enum AstKind {
 	stmtseq
 	s_if s_while s_return empty proc_call
 	expr
-		add sub mul div ident dec assign
+		add sub mul div ident dec assign index
 		gt gte lt lte eq neq
 }
 
@@ -55,21 +55,49 @@ fn (mut p Parser) term() &AstNode {
 	}
 }
 
-// PRECEDENCE '*' '/'
-fn (mut p Parser) expr3() &AstNode {
+/* mut x := &AstNode{kind: .index}
+	x.n1 = n
+	p.l.next()
+	x.n2 = p.expr()
+	n = x
+	if p.l.curr() != .csb {
+		panic("use ']' to close index expression")
+	}
+	p.l.next()
+} */
+
+// LEFT PRECEDENCE '[]'
+fn (mut p Parser) expr4() &AstNode {
 	mut n := p.term()
+	for p.l.curr() in [.osb] {
+		mut x := &AstNode{kind: .index}
+		x.n1 = n
+		p.l.next()
+		x.n2 = p.expr()
+		n = x
+		if p.l.curr() != .csb {
+			panic("use ']' to close index expression")
+		}
+		p.l.next()
+	}
+	return n
+}
+
+// LEFT PRECEDENCE '*' '/'
+fn (mut p Parser) expr3() &AstNode {
+	mut n := p.expr4()
 	for p.l.curr() in [.mul, .div] {
 		mut x := &AstNode{}
 		x.kind = if p.l.curr() == .mul { .mul } else { .div }
 		x.n1 = n
 		p.l.next()
-		x.n2 = p.term()
+		x.n2 = p.expr4()
 		n = x
 	}
 	return n
 }
 
-// PRECEDENCE '+' '-'
+// LEFT PRECEDENCE '+' '-'
 fn (mut p Parser) expr2() &AstNode {
 	mut n := p.expr3()
 	for p.l.curr() in [.add, .sub] {
@@ -83,7 +111,7 @@ fn (mut p Parser) expr2() &AstNode {
 	return n
 }
 
-// PRECEDENCE '>' '>=' '<' '<=' '==' '!='
+// LEFT PRECEDENCE '>' '>=' '<' '<=' '==' '!='
 fn (mut p Parser) expr1() &AstNode {
 	mut n := p.expr2()
 	for p.l.curr() in [.gt, .gte, .lt, .lte, .eq, .neq] {
@@ -107,7 +135,7 @@ fn (mut p Parser) expr1() &AstNode {
 	return n
 }
 
-// PRECEDENCE '='
+// RIGHT PRECEDENCE '='
 fn (mut p Parser) expr() &AstNode {
 	if p.l.curr() != .ident {
 		return p.expr1()
@@ -194,15 +222,12 @@ fn (mut p Parser) stmt() &AstNode {
 		}
 		.s_call {
 			n = &AstNode{kind: .proc_call}
-			if !p.l.expect(.ident) {
-				panic("expected name of procedure to call")
-			}
-			n.n1 = &AstNode{kind: .ident, value: p.l.str_data}
 			p.l.next()
+			n.n1 = p.expr()
 			if p.l.curr() == .semi {
 				p.l.next()
 			} else {
-				panic("expected semicolon to complete procedure call")
+				panic("expected semicolon to complete expression")
 			}
 			return n
 		}
