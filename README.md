@@ -1,6 +1,6 @@
 # t(iny)l(ang)
 
-A low level, tiny programming language.
+A tiny, proof of concept, programming language.
 
 ```
 proc main {
@@ -12,7 +12,7 @@ The creation of `tl` and it's compiler were used to learn the basics of conventi
 
 ## Syntax
 
-The syntax of of `tl` is a mingle of C with some alterations. If statements and while loops do not need parentheses circling the condition, and variable assignments are an expression itself.
+The syntax of of `tl` is a mingle of C with some alterations. For example, if statements and while loops do not need parentheses circling the condition.
 
 You cannot declare any variables, as there are a limited amount of predefined ones.
 
@@ -32,6 +32,8 @@ call function;
 s0 = function;
 call s0;
 ```
+
+There is only one builtin function, `print`. It is used to print the value of one number in `a0`.
 
 Predefining an array of values is also supported using the `data` keyword, mainly used to test out pointer indexing.
 
