@@ -169,7 +169,6 @@ fn (mut g Gen) const_data(root &AstNode) {
 fn (mut g Gen) gen(root &AstNode) {
 	match root.kind {
 		.s_proc {
-			g.label_count = 0
 			name := g.symtable[root.value as u64]
 			if name == 'main' {
 				g.writeln("tlmain:")
@@ -210,13 +209,13 @@ fn (mut g Gen) gen(root &AstNode) {
 			
 			g.expr(root.n1)
 			g.writeln("\ttest rax, rax")
-			g.writeln("\tjz .${lbl}")
+			g.writeln("\tjz .L${lbl}")
 			g.gen(root.n2)
 			if unsafe { root.n3 != nil } {
 				lbl2 = g.lbl()
 				g.writeln("\tjmp .${lbl2}")
 			}
-			g.writeln(".${lbl}:")
+			g.writeln(".L${lbl}:")
 			if unsafe { root.n3 != nil } {
 				g.gen(root.n3)
 				g.writeln(".${lbl2}:")
@@ -225,13 +224,13 @@ fn (mut g Gen) gen(root &AstNode) {
 		.s_while {
 			lbl := g.lbl()
 			lbl2 := g.lbl()
-			g.writeln(".${lbl}:")
+			g.writeln(".L${lbl}:")
 			g.expr(root.n1)
 			g.writeln("\ttest rax, rax")
-			g.writeln("\tjz .${lbl2}")
+			g.writeln("\tjz .L${lbl2}")
 			g.gen(root.n2)
-			g.writeln("\tjmp .${lbl}")
-			g.writeln(".${lbl2}:")
+			g.writeln("\tjmp .L${lbl}")
+			g.writeln(".L${lbl2}:")
 		}
 		.s_return {
 			g.writeln("\tleave")
